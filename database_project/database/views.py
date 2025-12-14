@@ -2,6 +2,13 @@ from django.db import connection
 from django.shortcuts import render
 from .forms import GlobalSearchForm
 
+
+
+def home_view(request):
+    return render(request, "database/home.html")
+
+
+
 def dictfetchall(cursor):
     cols = [col[0] for col in cursor.description]
     return [dict(zip(cols, row)) for row in cursor.fetchall()]
