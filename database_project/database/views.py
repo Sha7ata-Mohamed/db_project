@@ -3,15 +3,14 @@ from django.shortcuts import render
 from .forms import GlobalSearchForm
 
 
-
 def home_view(request):
     return render(request, "database/home.html")
-
 
 
 def dictfetchall(cursor):
     cols = [col[0] for col in cursor.description]
     return [dict(zip(cols, row)) for row in cursor.fetchall()]
+
 
 def search_view(request):
     form = GlobalSearchForm(request.GET or None)
@@ -23,7 +22,11 @@ def search_view(request):
 
         # If empty, just show page
         if not q:
-            return render(request, "database/search.html", {"form": form, "q": q, "results": results})
+            return render(
+                request,
+                "database/search.html",
+                {"form": form, "q": q, "results": results},
+            )
 
         name_prefix = f"{q}%"
         contains = f"%{q}%"
@@ -46,7 +49,7 @@ def search_view(request):
                     LEFT JOIN research_data rd ON rd.researcher_id = r.researcher_id
                     WHERE r.name LIKE %s
                     """,
-                    [name_prefix]
+                    [name_prefix],
                 )
                 matches = cursor.fetchall()
 
@@ -58,7 +61,7 @@ def search_view(request):
                     LEFT JOIN research_data rd ON rd.researcher_id = r.researcher_id
                     WHERE r.researcher_id = %s
                     """,
-                    [q_upper]
+                    [q_upper],
                 )
                 matches = cursor.fetchall()
 
@@ -70,7 +73,7 @@ def search_view(request):
                     JOIN collecting_db r ON r.researcher_id = rd.researcher_id
                     WHERE rd.research_id = %s
                     """,
-                    [q_upper]
+                    [q_upper],
                 )
                 matches = cursor.fetchall()
 
@@ -92,7 +95,7 @@ def search_view(request):
                         OR c.conference_name LIKE %s
                         OR k.keyword LIKE %s
                     """,
-                    [name_prefix, contains, contains, contains, contains, contains]
+                    [name_prefix, contains, contains, contains, contains, contains],
                 )
                 matches = cursor.fetchall()
 
@@ -104,11 +107,17 @@ def search_view(request):
             params = []
 
             if researcher_ids:
-                where_parts.append("r.researcher_id IN (" + ",".join(["%s"] * len(researcher_ids)) + ")")
+                where_parts.append(
+                    "r.researcher_id IN ("
+                    + ",".join(["%s"] * len(researcher_ids))
+                    + ")"
+                )
                 params.extend(researcher_ids)
 
             if research_ids:
-                where_parts.append("rd.research_id IN (" + ",".join(["%s"] * len(research_ids)) + ")")
+                where_parts.append(
+                    "rd.research_id IN (" + ",".join(["%s"] * len(research_ids)) + ")"
+                )
                 params.extend(research_ids)
 
             where_sql = " OR ".join(where_parts)
@@ -137,8 +146,10 @@ def search_view(request):
                     ORDER BY r.name, rd.publication_date DESC
                     LIMIT 500;
                     """,
-                    params
+                    params,
                 )
                 results = dictfetchall(cursor)
 
-    return render(request, "database/search.html", {"form": form, "q": q, "results": results})
+    return render(
+        request, "database/search.html", {"form": form, "q": q, "results": results}
+    )
