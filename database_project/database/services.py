@@ -155,17 +155,17 @@ class ResearchDataHandler:
 
     @staticmethod
     def search_by_title(title: str, limit: int = 200) -> List[Dict[str, Any]]:
-        """Search research by title (full title or any word in title)."""
+        """Search research by title (full title or any word in title) OR by keyword."""
         with connection.cursor() as cursor:
             cursor.execute(
                 ResearchDataHandler.RESEARCH_FULL_SELECT
                 + """
-                WHERE LOWER(rd.title) LIKE %s
+                WHERE LOWER(rd.title) LIKE %s OR LOWER(k.keyword) LIKE %s
                 GROUP BY rd.research_id
                 ORDER BY MAX(rd.publication_date) DESC
                 LIMIT %s
                 """,
-                [f"%{title.lower()}%", limit],
+                [f"%{title.lower()}%", f"%{title.lower()}%", limit],
             )
             return dictfetchall(cursor)
 
@@ -309,12 +309,23 @@ class SearchHandler:
 
         # 3) Keyword - ONLY exact match (full word required)
         # User must type at least a complete keyword
+        # Also search for research with this word in title or as keyword
         keywords = KeywordDataHandler.search_exact(query)
         if keywords:
             result["search_type"] = "keyword"
             result["keywords"] = keywords
             keyword_ids = [kw["keyword_id"] for kw in keywords]
-            result["research"] = ResearchDataHandler.get_by_keyword_ids(keyword_ids)
+            # Get research with this keyword AND also research with this word in title
+            keyword_research = ResearchDataHandler.get_by_keyword_ids(keyword_ids)
+            title_research = ResearchDataHandler.search_by_title(query)
+            
+            # Combine both results and remove duplicates
+            research_dict = {r["research_id"]: r for r in keyword_research}
+            for r in title_research:
+                if r["research_id"] not in research_dict:
+                    research_dict[r["research_id"]] = r
+            
+            result["research"] = list(research_dict.values())
             return result
 
         # 4) Title search - full title or any word in title
