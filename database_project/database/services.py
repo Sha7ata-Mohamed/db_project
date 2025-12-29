@@ -153,6 +153,22 @@ class ResearchDataHandler:
             )
             return dictfetchall(cursor)
 
+    @staticmethod
+    def search_by_title(title: str, limit: int = 200) -> List[Dict[str, Any]]:
+        """Search research by title (full title or any word in title)."""
+        with connection.cursor() as cursor:
+            cursor.execute(
+                ResearchDataHandler.RESEARCH_FULL_SELECT
+                + """
+                WHERE LOWER(rd.title) LIKE %s
+                GROUP BY rd.research_id
+                ORDER BY MAX(rd.publication_date) DESC
+                LIMIT %s
+                """,
+                [f"%{title.lower()}%", limit],
+            )
+            return dictfetchall(cursor)
+
 
 class ResearcherDataHandler:
     """Handles all researcher data operations."""
@@ -301,7 +317,14 @@ class SearchHandler:
             result["research"] = ResearchDataHandler.get_by_keyword_ids(keyword_ids)
             return result
 
-        # 4) Name search - starts with first character
+        # 4) Title search - full title or any word in title
+        title_research = ResearchDataHandler.search_by_title(query)
+        if title_research:
+            result["search_type"] = "title"
+            result["research"] = title_research
+            return result
+
+        # 5) Name search - starts with first character
         # Single char prefix
         if SearchHandler.is_single_char(query):
             result["search_type"] = "first_character"
